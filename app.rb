@@ -31,35 +31,32 @@ class App
 
 
     def get_repos
-      flagged_content = get_flagged_response
-      comparison_content = get_comparison_response
+      @student_flagged ||= check_for_content(get_flagged_response)
+      @comparison_flagged ||=  check_for_content(get_comparison_response)
 
-      student_flagged = check_for_content(flagged_content)
-
-      comparison_flagged =  check_for_content(comparison_content)
-
-
-      student_flagged.map.with_index do |line, index|
-        comparison_flagged.each do |flag|
-          if line != "\n" && flag != "\n" && Text::Levenshtein.distance(line, flag) <= 3
-            format_flagged_line(line, index) if comparison_flagged.include?(line)
-          else
-            nil
+      @student_flagged.map.with_index do |line, index|
+        @comparison_flagged.each do |flag|
+          if line && flag && line != "\n" && flag != "\n" && Text::Levenshtein.distance(line, flag) <= 3
+            format_flagged_line(line, index) if @comparison_flagged.include?(line)
           end
         end
       end
 
-      if @outcome.empty?
-        puts "Clean Code - No Collisions"
-      else
-        puts "Collisions: #{@outcome.length}\n================"
-        ap @outcome
-      end
+      explain_output
     end
+
+  def explain_output
+    if @outcome.empty?
+      puts "Clean Code - No Collisions"
+    else
+      puts "Collisions: #{@outcome.length}\n================"
+      ap @outcome
+    end
+  end
 
 
   def warn_directions!
-    "\nWARNING:\nPlease check inputs and try again: USAGE:\n\nruby app.rb :1flagged_github_username :2flagged_github_repositoty_name :3flagged_file_name :4comparison_github_username :5comparison_github_repositoty_name :6comparison_file_name\n\n\n"
+    "\nWARNING:\nPlease check inputs and try again: \n\nUSAGE:\nruby app.rb :1flagged_github_username :2flagged_github_repositoty_name :3flagged_file_name :4comparison_github_username :5comparison_github_repositoty_name :6comparison_file_name\n\n\n"
   end
 
   def check_for_content(repo_content)
@@ -83,10 +80,11 @@ class App
   end
 
   def get_repo(username, repo, file)
+
     comparison_response = @connection.get do |req|
-      req.url "#{comparison_username}/#{comparison_repo}/#{comparison_file_name}?client_id=#{ENV['GITHUB_CLIENT_ID']}&client_secret=#{ENV['GITHUB_CLIENT_SECRET']}&encoding=utf8"
+      req.url "#{username}/#{repo}/contents/#{file}?client_id=#{ENV['GITHUB_CLIENT_ID']}&client_secret=#{ENV['GITHUB_CLIENT_SECRET']}"
       req.headers['Content-Type'] = "application/vnd.github.v3+json"
-      req.headers['User-Agent'] = "Carmer"
+      req.headers['User-Agent'] = ENV['GITHUB_USER_AGENT']
       req.headers['encoding'] = "utf-8"
     end
 
